@@ -1,9 +1,14 @@
-import os
+"""Mermaid Renderer - converts labeled DAG to Mermaid.js flowchart."""
+
 import re
+from pathlib import Path
+
+from app.state import SynaptixState
 
 
-def render(state: dict) -> dict[str, str]:
-    repo_path: str = state["repo_path"]
+def render(state: SynaptixState) -> dict[str, str]:
+    """Render the dependency graph as a Mermaid flowchart and save to file."""
+    repo_path = Path(state["repo_path"])
     edges: dict[str, list[str]] = state["dependency_edges"]
     labels: dict[str, str] = state.get("file_labels", {})
 
@@ -21,17 +26,20 @@ def render(state: dict) -> dict[str, str]:
         lines.append(f'    {nid}["{safe_label}"]')
 
     for src, deps in sorted(edges.items()):
-        for dep in sorted(deps):
-            if src in node_ids and dep in node_ids:
-                lines.append(f"    {node_ids[src]} --> {node_ids[dep]}")
+        lines.extend(
+            f"    {node_ids[src]} --> {node_ids[dep]}"
+            for dep in sorted(deps)
+            if src in node_ids and dep in node_ids
+        )
 
     mermaid = "\n".join(lines)
 
-    out_path = os.path.join(repo_path, "synaptix_output.md")
-    with open(out_path, "w") as f:
-        f.write(f"# Synaptix - Repository Mental Map\n\n```mermaid\n{mermaid}\n```\n")
+    out_path = repo_path / "synaptix_output.md"
+    out_path.write_text(
+        f"# Synaptix - Repository Mental Map\n\n```mermaid\n{mermaid}\n```\n",
+    )
 
-    return {"mermaid_output": mermaid, "output_file": out_path}
+    return {"mermaid_output": mermaid, "output_file": str(out_path)}
 
 
 def _sanitize(text: str) -> str:

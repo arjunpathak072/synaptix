@@ -1,8 +1,10 @@
-import os
+"""CLI interface for Synaptix."""
+
+from pathlib import Path
 
 import click
 
-from synaptix.graph import build_graph
+from app.graph import build_graph
 
 
 @click.command()
@@ -14,7 +16,7 @@ from synaptix.graph import build_graph
 )
 def main(path: str) -> None:
     """Synaptix - Build a Mental Map of any Python repository."""
-    repo_path = os.path.abspath(path)
+    repo_path = str(Path(path).resolve())
     click.echo(f"Scanning: {repo_path}\n")
 
     graph = build_graph()

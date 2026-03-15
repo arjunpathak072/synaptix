@@ -1,20 +1,27 @@
-import os
+"""Semantic Indexer agent - vectorizes code chunks into ChromaDB."""
+
+import contextlib
+import logging
+from pathlib import Path
 
 import chromadb
 
+from app.state import SynaptixState
 
-def index(state: dict) -> dict:
-    repo_path: str = state["repo_path"]
+logger = logging.getLogger(__name__)
+
+
+def index(state: SynaptixState) -> dict[str, str]:
+    """Index discovered files into a ChromaDB vector collection."""
+    repo_path = Path(state["repo_path"])
     discovered: list[str] = state["discovered_files"]
     entry_points: set[str] = set(state["entry_points"])
 
-    db_path = os.path.join(repo_path, ".synaptix_db")
-    client = chromadb.PersistentClient(path=db_path)
+    db_path = repo_path / ".synaptix_db"
+    client = chromadb.PersistentClient(path=str(db_path))
 
-    try:
+    with contextlib.suppress(ValueError):
         client.delete_collection("codebase")
-    except Exception:
-        pass
     collection = client.create_collection("codebase")
 
     docs: list[str] = []
@@ -23,8 +30,7 @@ def index(state: dict) -> dict:
 
     for rel in discovered:
         try:
-            with open(os.path.join(repo_path, rel), "r") as f:
-                content = f.read()
+            content = (repo_path / rel).read_text()
         except (UnicodeDecodeError, FileNotFoundError):
             continue
         if not content.strip():
@@ -36,5 +42,5 @@ def index(state: dict) -> dict:
     if docs:
         collection.add(documents=docs, ids=ids, metadatas=metas)
 
-    print(f"  Indexed {len(docs)} files into ChromaDB")
+    logger.info("Indexed %d files into ChromaDB", len(docs))
     return {}

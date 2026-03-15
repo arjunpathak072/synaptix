@@ -1,10 +1,18 @@
+"""Context Climber agent - traces import dependencies via AST parsing."""
+
 import ast
-import os
+import logging
 from collections import deque
+from pathlib import Path
+
+from app.state import SynaptixState
+
+logger = logging.getLogger(__name__)
 
 
-def climb(state: dict) -> dict[str, dict[str, list[str]]]:
-    repo_path: str = state["repo_path"]
+def climb(state: SynaptixState) -> dict[str, dict[str, list[str]]]:
+    """Trace import dependencies from entry points and build a dependency DAG."""
+    repo_path = Path(state["repo_path"])
     discovered: set[str] = set(state["discovered_files"])
     entry_points: list[str] = state["entry_points"]
 
@@ -19,7 +27,9 @@ def climb(state: dict) -> dict[str, dict[str, list[str]]]:
         visited.add(current)
 
         imports = _extract_local_imports(
-            os.path.join(repo_path, current), repo_path, discovered
+            repo_path / current,
+            repo_path,
+            discovered,
         )
         if imports:
             edges[current] = imports
@@ -32,20 +42,21 @@ def climb(state: dict) -> dict[str, dict[str, list[str]]]:
             edges.setdefault(rel, [])
 
     total_edges = sum(len(v) for v in edges.values())
-    print(f"  Traced {total_edges} dependency edges across {len(edges)} files")
+    logger.info("Traced %d dependency edges across %d files", total_edges, len(edges))
     return {"dependency_edges": edges}
 
 
 def _extract_local_imports(
-    filepath: str, repo_root: str, known_files: set[str]
+    filepath: Path,
+    repo_root: Path,
+    known_files: set[str],
 ) -> list[str]:
     try:
-        with open(filepath, "r") as f:
-            tree = ast.parse(f.read(), filename=filepath)
+        tree = ast.parse(filepath.read_text(), filename=str(filepath))
     except (SyntaxError, UnicodeDecodeError, FileNotFoundError):
         return []
 
-    file_dir = os.path.dirname(filepath)
+    file_dir = filepath.parent
     imports: list[str] = []
 
     for node in ast.walk(tree):
@@ -60,26 +71,27 @@ def _extract_local_imports(
 
 def _resolve_and_add(
     module: str,
-    repo_root: str,
-    file_dir: str,
+    repo_root: Path,
+    file_dir: Path,
     known_files: set[str],
     out: list[str],
 ) -> None:
+    """Resolve a module name to a known file path and append it to out."""
     parts = module.split(".")
     candidates = [
-        os.path.join(*parts) + ".py",
-        os.path.join(*parts, "__init__.py"),
+        str(Path(*parts)) + ".py",
+        str(Path(*parts, "__init__.py")),
     ]
 
-    rel_from_root = os.path.relpath(file_dir, repo_root)
-    if rel_from_root != ".":
+    rel_from_root = file_dir.relative_to(repo_root)
+    if str(rel_from_root) != ".":
         candidates += [
-            os.path.join(rel_from_root, *parts) + ".py",
-            os.path.join(rel_from_root, *parts, "__init__.py"),
+            str(rel_from_root / Path(*parts)) + ".py",
+            str(rel_from_root / Path(*parts, "__init__.py")),
         ]
 
     for candidate in candidates:
-        normalized = os.path.normpath(candidate)
+        normalized = str(Path(candidate))
         if normalized in known_files:
             out.append(normalized)
             return
