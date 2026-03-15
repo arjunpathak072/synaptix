@@ -24,20 +24,32 @@ def main(path: str, chat: bool) -> None:
     """Synaptix - Build a Mental Map of any Python repository."""
     repo_path = str(Path(path).resolve())
 
+    db_path = Path(repo_path) / ".synaptix_db"
+    has_index = False
+    if db_path.exists():
+        import chromadb
+
+        try:
+            c = chromadb.PersistentClient(path=str(db_path))
+            c.get_collection("codebase")
+            has_index = True
+        except Exception:
+            pass
+
+    run_pipeline = not chat or not has_index
+
+    if run_pipeline:
+        click.echo(f"Scanning: {repo_path}\n")
+        graph = build_graph()
+        result = graph.invoke({"repo_path": repo_path})
+
+        if result.get("mermaid_output"):
+            click.echo("\nDependency Graph (Mermaid):\n")
+            click.echo(result["mermaid_output"])
+        if result.get("output_file"):
+            click.echo(f"\nSaved to: {result['output_file']}")
+
     if chat:
         from app.tui import run_tui
 
         run_tui(repo_path)
-        return
-
-    click.echo(f"Scanning: {repo_path}\n")
-
-    graph = build_graph()
-    result = graph.invoke({"repo_path": repo_path})
-
-    if result.get("mermaid_output"):
-        click.echo("\nDependency Graph (Mermaid):\n")
-        click.echo(result["mermaid_output"])
-
-    if result.get("output_file"):
-        click.echo(f"\nSaved to: {result['output_file']}")
