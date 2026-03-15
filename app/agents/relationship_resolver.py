@@ -6,17 +6,10 @@ from pathlib import Path
 
 from langchain_ollama import ChatOllama
 
+from app.prompts import load
 from app.state import SynaptixState
 
 logger = logging.getLogger(__name__)
-
-PROMPT = (
-    "You are a code analyst. Given this Python file, respond with ONLY a short label "
-    "(max 6 words) describing its role, e.g. 'API route handler' or "
-    "'Database utilities'. "
-    "No explanation, no thinking, just the label.\n\n"
-    "File: {path}\n\n```python\n{code}\n```"
-)
 
 
 def resolve(state: SynaptixState) -> dict[str, dict[str, str]]:
@@ -41,7 +34,7 @@ def resolve(state: SynaptixState) -> dict[str, dict[str, str]]:
         if llm:
             try:
                 code = (repo_path / rel).read_text()[:4000]
-                resp = llm.invoke(PROMPT.format(path=rel, code=code))
+                resp = llm.invoke(load("label").format(path=rel, code=code))
                 if isinstance(resp.content, str):
                     label = _clean_label(resp.content)
                     labels[rel] = label or _fallback_label(rel)
