@@ -1,0 +1,14 @@
+[project]
+name = "synaptix"
+version = "0.1.0"
+description = "Agentic AI system that autonomously constructs a Mental Map of any Python repository"
+requires-python = ">=3.11"
+dependencies = [
+    "langgraph>=0.2",
+    "langchain-ollama>=0.2",
+    "chromadb>=0.5",
+    "click>=8.1",
+]
+
+[project.scripts]
+synaptix = "synaptix.cli:main"
