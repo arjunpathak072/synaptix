@@ -12,6 +12,7 @@ dependencies = [
     "ollama>=0.4",
     "tree-sitter>=0.24",
     "tree-sitter-python>=0.23",
+    "flask>=3.0",
 ]
 
 [project.scripts]

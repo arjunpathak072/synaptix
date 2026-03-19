@@ -19,3 +19,5 @@ synaptix_output.md
 
 .ropeproject
 .ruff_cache
+
+venv

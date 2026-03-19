@@ -20,7 +20,13 @@ from app.graph import build_graph
     default=False,
     help="Launch interactive TUI to ask questions about the codebase",
 )
-def main(path: str, chat: bool) -> None:
+@click.option(
+    "--web",
+    is_flag=True,
+    default=False,
+    help="Launch Synaptix Explorer web UI (diagram + chat)",
+)
+def main(path: str, chat: bool, web: bool) -> None:
     """Synaptix - Build a Mental Map of any Python repository."""
     repo_path = str(Path(path).resolve())
 
@@ -36,7 +42,8 @@ def main(path: str, chat: bool) -> None:
         except Exception:
             pass
 
-    run_pipeline = not chat or not has_index
+    has_output = (Path(repo_path) / "synaptix_output.md").exists()
+    run_pipeline = not (chat or web) or not has_index or not has_output
 
     if run_pipeline:
         click.echo(f"Scanning: {repo_path}\n")
@@ -49,7 +56,11 @@ def main(path: str, chat: bool) -> None:
         if result.get("output_file"):
             click.echo(f"\nSaved to: {result['output_file']}")
 
-    if chat:
+    if web:
+        from app.web import run_web
+
+        run_web(repo_path)
+    elif chat:
         from app.tui import run_tui
 
         run_tui(repo_path)
