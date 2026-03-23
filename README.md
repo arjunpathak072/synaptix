@@ -2,7 +2,7 @@
 
 Agentic AI system that autonomously constructs a **Mental Map** of any Python repository. It discovers entry points, traces import dependencies via AST parsing, uses a local LLM to semantically label each module, and outputs a Mermaid.js dependency flowchart.
 
-Built with **LangGraph** (multi-agent orchestration), **Ollama/qwen3** (local LLM), **ChromaDB** (vector storage), and **Tree-sitter** (symbol-level code indexing).
+Built with **LangGraph** (multi-agent orchestration), **Ollama/qwen3** (local LLM), **ChromaDB** (vector storage), **Tree-sitter** (symbol-level code indexing), and Python's **ast** module (import tracing & entry point detection).
 
 ## Prerequisites
 
@@ -28,8 +28,8 @@ python -m app --path /path/to/python/repo
 # Analyze and launch interactive chat
 python -m app --path /path/to/python/repo --chat
 
-# Chat with a previously analyzed repo (skips re-indexing)
-python -m app --path /path/to/python/repo --chat
+# Analyze and launch web UI
+python -m app --path /path/to/python/repo --web
 ```
 
 If you pass `--chat` and the repo hasn't been indexed yet, Synaptix will automatically run the full analysis pipeline before opening the chat.
@@ -52,9 +52,9 @@ CLI → Discovery Agent → Context Climber → Semantic Indexer → Relationshi
 
 | Agent | Role |
 |---|---|
-| **Discovery Agent** | Scans repo for `.py` files, identifies entry points |
-| **Context Climber** | AST-based recursive import tracing, builds dependency DAG |
-| **Semantic Indexer** | Uses Tree-sitter to extract symbols (functions, classes, methods) and indexes each as a separate vector chunk in ChromaDB |
-| **Relationship Resolver** | Uses Ollama/qwen3 to label each module's role |
-| **Mermaid Renderer** | Converts labeled DAG to Mermaid.js flowchart |
+| **Discovery Agent** | Scans repo for `.py` files, uses Python `ast` to detect `if __name__ == "__main__"` guards and identify entry points |
+| **Context Climber** | Uses Python `ast` to recursively trace `import` / `from ... import` statements and build a dependency DAG |
+| **Semantic Indexer** | Uses **Tree-sitter** to extract symbols (functions, classes, methods) and indexes each as a separate vector chunk in ChromaDB |
+| **Relationship Resolver** | Uses Ollama/qwen3 to semantically label each module's role |
+| **Mermaid Renderer** | Converts the labeled DAG to a Mermaid.js flowchart |
 | **Chat TUI** | Interactive Q&A with symbol-level RAG retrieval and debug trace |
